@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POMNSOE FORMAL VOTING</title>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+  /* Admin theme: Gold · Purple · Black — match admin.html while keeping original layout */
+  :root{
+    --bg-0: #000000;
+    --panel: #0f0b14;
+    --gold: #D4AF37;
+    --gold-dark: #b68f2a;
+    --purple: #6E2DA8;
+    --muted: #cdb7e8;
+    --text: #f6edd8;
+    --glass: rgba(255,255,255,0.02);
+    --border: rgba(110,45,168,0.12);
+    --radius: 12px;
+    --maxw: 1100px;
+  }
+
+  /* Layout (original structure preserved) */
+  html,body{height:100%; margin:0;}
+  body{
+    min-height:100vh;
+    background: linear-gradient(180deg, var(--bg-0) 0%, #07040a 60%);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    color:var(--text);
+    display:flex;
+    justify-content:center;
+    padding:28px;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+
+  .wrap{
+    width:100%;
+    max-width:var(--maxw);
+    background:var(--panel);
+    border-radius:16px;
+    padding:22px;
+    box-sizing:border-box;
+    border:1px solid var(--border);
+    box-shadow:
+      0 6px 20px rgba(110,45,168,0.06),
+      0 20px 60px rgba(0,0,0,0.7);
+  }
+
+  header{ display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; }
+  .brand{ display:flex; gap:12px; align-items:center; }
+ .logo {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background-image: url('assets/logo.png');
+    background-size: cover;
+    background-position: center;
+  }
+  h1{ margin:0; font-size:20px; color:var(--gold); letter-spacing:0.2px; }
+  .sub{ color:var(--muted); font-size:13px; margin-top:4px; }
+
+  .layout { display:grid; grid-template-columns: 1fr 380px; gap:20px; align-items:start; }
+  @media (max-width:920px){ .layout { grid-template-columns: 1fr; } }
+
+  .panel{
+    background:var(--panel);
+    border-radius:12px;
+    padding:14px;
+    border:1px solid rgba(255,255,255,0.02);
+    box-sizing:border-box;
+  }
+
+  .category-title{ color:var(--purple); margin:0 0 12px 0; font-size:16px; }
+  .candidates { display:flex; flex-direction:column; gap:10px; max-height:62vh; overflow:auto; padding-right:6px; }
+
+  .candidate{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px; border-radius:10px;
+    background: var(--panel);
+    border:1px solid rgba(255,255,255,0.02);
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    cursor:default;
+  }
+  .candidate:hover {
+    transform: none;
+    border-color: inherit;
+    box-shadow: none;
+  }
+
+  .candidate strong{ color:var(--text); font-size:15px; display:block; }
+  .candidate .meta{ color:var(--muted); font-size:12px; margin-top:4px; }
+
+  .ranks{ display:flex; gap:8px; align-items:center; color:var(--muted); }
+  .ranks label{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:34px; height:28px; border-radius:8px; font-weight:700;
+    color:inherit; background:none; border:none; transition:none;
+    user-select:none;
+  }
+  .ranks input{
+    display:inline-block;
+  }
+  .ranks input:checked + span{
+    background:none;
+    color:inherit;
+    transform:none;
+  }
+  .ranks label:hover {
+    transform: none;
+    border-color: inherit;
+    box-shadow: none;
+  }
+
+  /* Controls (right side) */
+  input[type="text"], .code-input {
+    width:100%; padding:10px 12px; border-radius:10px;
+    border:1px solid rgba(255,255,255,0.04); background:transparent; color:var(--text);
+    box-sizing:border-box; outline:none;
+  }
+
+  .side { display:flex; flex-direction:column; gap:12px; }
+
+  #candidates,.btn {
+    background: linear-gradient(180deg,var(--gold), var(--gold-dark));
+    color:#050505; padding:10px 14px; border-radius:10px; border:none; cursor:pointer; font-weight:700;
+    box-shadow: 0 8px 20px rgba(182, 63, 42, 0.08);
+    transition: transform .12s ease;
+  }
+  #candidates:active, .btn:active{ transform: translateY(1px); }
+  #candidates,.secondary{
+    background:transparent; color:var(--muted); border:1px solid rgba(110,45,168,0.08);
+  }
+
+  .codes { font-family:monospace; background:#050405; padding:8px; border-radius:8px; color:var(--muted); max-height:120px; overflow:auto; border:1px solid rgba(255,255,255,0.02); }
+
+  .muted { color:var(--muted); font-size:13px; }
+  .footer-note{ color:var(--muted); font-size:13px; text-align:center; margin-top:12px; }
+
+  /* Modal (admin password) */
+  .modal {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background: rgba(0,0,0,0.6); z-index:60; display:none;
+  }
+  .modal .box {
+    background: var(--panel);
+    padding:18px; border-radius:12px; width:360px; box-shadow:0 14px 46px rgba(0,0,0,0.9);
+    border:1px solid var(--border);
+  }
+  .modal input { width:100%; padding:10px; border-radius:8px; margin-top:8px; border:1px solid rgba(255,255,255,0.03); background:transparent; color:var(--text); }
+
+  /* helpers */
+  .help-text{ font-size:13px; color:var(--muted); margin-top:8px; }
+
+  .main-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    max-width: var(--maxw);
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 22px;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    box-shadow: 0 6px 20px rgba(110, 45, 168, 0.06), 0 20px 60px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
+  }
+
+  .main-container > * {
+    width: 100%;
+  }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="main-container">
+      <header>
+        <div class="brand">
+          <div class="logo"></div>
+          <div>
+            <h1>Formal Voting</h1>
+            <div class="sub">Enter your one-time code. Each code is usable once.</div>
+          </div>
+        </div>
+
+        <div class="top-links">
+          <button id="candidates" onclick="window.location.href='candidates.html'">Candidates</button>
+          <button id="adminLoginBtn" class="btn secondary">Admin Login</button>
+        </div>
+      </header>
+
+      <div class="layout">
+        <!-- left: candidate lists -->
+        <section class="panel">
+          <h2 class="category-title">Prom King</h2>
+          <div id="kingList" class="candidates"></div>
+
+          <h2 class="category-title" style="margin-top:14px">Prom Queen</h2>
+          <div id="queenList" class="candidates"></div>
+        </section>
+
+        <!-- right: controls -->
+        <aside class="side">
+          <div class="panel">
+            <label for="voteCode"><strong>Voter Code</strong></label>
+            <input id="voteCode" class="code-input" type="text" placeholder="Enter your one-time code">
+
+            <label style="margin-top:8px"><strong>Your name</strong></label>
+            <input id="voterName" type="text" class="code-input" placeholder="Your name (optional)">
+
+            <div style="display:flex; gap:8px; margin-top:12px;">
+              <button id="submitVote" class="btn">Submit Vote</button>
+              <button id="helpBtn" type="button" class="btn secondary">Help</button>
+            </div>
+
+            <p id="formMsg" class="muted" style="margin-top:10px"></p>
+          </div>
+
+          <div class="panel">
+            <strong>Available Codes (sample)</strong>
+            <div id="codesList" class="codes">Hidden — admin can show codes in admin panel</div>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+            <button id="openAdmin" class="btn secondary" style="flex:1">Open Admin (if logged in)</button>
+          </div>
+        </aside>
+      </div>
+
+      <div class="footer-note">One Time Election Site</div>
+    </div>
+
+    <!-- admin password modal (client-side gate) -->
+    <div id="adminModal" class="modal" aria-hidden="true">
+      <div class="box">
+        <h3 style="margin:0;color:var(--gold)">Admin Login</h3>
+        <p class="muted" style="margin:6px 0 0 0">Enter the admin password to access the admin dashboard.</p>
+        <input id="adminPasswordInput" type="password" placeholder="Admin password">
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button id="adminSubmit" class="btn">Enter</button>
+          <button id="adminCancel" class="btn secondary">Cancel</button>
+        </div>
+        <p id="adminErr" class="muted" style="margin-top:8px"></p>
+      </div>
+    </div>
+
+  <script>
+    // 🔥 Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyANtBAgurbdYePV2WCKp3aMyttLQnK52K8",
+      authDomain: "prom-26b4b.firebaseapp.com",
+      projectId: "prom-26b4b",
+      storageBucket: "prom-26b4b.firebasestorage.app",
+      messagingSenderId: "206064316497",
+      appId: "1:206064316497:web:c577820d707da7af0e8870",
+      measurementId: "G-JVRMPCV8JR"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const kingList = document.getElementById('kingList');
+    const queenList = document.getElementById('queenList');
+    const submitVoteBtn = document.getElementById('submitVote');
+    const formMsg = document.getElementById('formMsg');
+    const codesList = document.getElementById('codesList');
+
+    // local codes storage (sample display)
+    const CODES_KEY = 'voterCodes_v1';
+    const CODES_COUNT = 600; // total codes to generate
+
+    function generateRandomCode(len=8){
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let s=''; for (let i=0;i<len;i++) s+=chars.charAt(Math.floor(Math.random()*chars.length)); return s;
+    }
+    function generateCodes(n){
+      const map={};
+      while (Object.keys(map).length < n) map[generateRandomCode()] = false;
+      localStorage.setItem(CODES_KEY, JSON.stringify(map));
+    }
+    function loadCodes(){ return JSON.parse(localStorage.getItem(CODES_KEY) || '{}'); }
+
+    if (!localStorage.getItem(CODES_KEY)) generateCodes(CODES_COUNT);
+
+    function showSomeCodes(){
+      // keep only a sample and DO NOT show usage here
+      const codes = loadCodes();
+      const unused = Object.keys(codes).filter(k=>!codes[k]).slice(0,8);
+      codesList.textContent = unused.join('  ');
+    }
+    showSomeCodes();
+
+    // render candidates from Firestore (no counts shown here)
+    const categories = ['King','Queen'];
+    const voterSelections = { King: {vote1:null,vote2:null,vote3:null}, Queen: {vote1:null,vote2:null,vote3:null} };
+
+    // update unique-selection logic: prevent selecting the same candidate for multiple ranks within a category
+    function updateUniqueSelections(category) {
+      // Collect selected IDs for the category
+      const selectedIds = new Set();
+      for (let rank = 1; rank <= 3; rank++) {
+        const sel = document.querySelector(`input[name="${category}${rank}"]:checked`);
+        if (sel) selectedIds.add(sel.value);
+      }
+
+      // Enable/disable inputs: disable an input if that candidate is selected in another rank
+      for (let rank = 1; rank <= 3; rank++) {
+        document.querySelectorAll(`input[name="${category}${rank}"]`).forEach((inp) => {
+          inp.disabled = selectedIds.has(inp.value) && !inp.checked;
+        });
+      }
+    }
+
+    // attach onchange handlers to radios for a category (used after rendering)
+    function attachUniqueHandlers(category){
+      for (let rank=1; rank<=3; rank++){
+        document.querySelectorAll(`input[name="${category}${rank}"]`).forEach(inp=>{
+          // overwrite previous handler to avoid duplicates
+          inp.onchange = function(){
+            // update voterSelections
+            const sel1 = document.querySelector(`input[name="${category}1"]:checked`);
+            const sel2 = document.querySelector(`input[name="${category}2"]:checked`);
+            const sel3 = document.querySelector(`input[name="${category}3"]:checked`);
+            voterSelections[category].vote1 = sel1 ? sel1.value : null;
+            voterSelections[category].vote2 = sel2 ? sel2.value : null;
+            voterSelections[category].vote3 = sel3 ? sel3.value : null;
+            // update UI constraints
+            updateUniqueSelections(category);
+          };
+        });
+      }
+      // run once to enforce initial state
+      updateUniqueSelections(category);
+    }
+
+    // when snapshot changes, render candidate lists and attach handlers
+    db.collection('candidates').onSnapshot(snapshot => {
+      kingList.innerHTML = '';
+      queenList.innerHTML = '';
+
+      snapshot.forEach(doc => {
+        const c = doc.data();
+        if (!c || !c.category) return;
+
+        const container = document.createElement('div');
+        container.className = 'candidate';
+        const left = document.createElement('div');
+        left.innerHTML = `<strong>${escapeHtml(c.name)}</strong> <div class="muted" style="font-size:12px">${escapeHtml(c.category)}</div>`;
+
+        const ranks = document.createElement('div');
+        ranks.className = 'ranks';
+        // three ranks only
+        [1,2,3].forEach(rank=>{
+          const label = document.createElement('label');
+          label.style.cursor = 'pointer';
+          const radio = document.createElement('input');
+          radio.type = 'radio';
+          // names grouped by category+rank so there are exactly three radio groups per category
+          radio.name = `${c.category}${rank}`;
+          radio.value = doc.id;
+          label.appendChild(radio);
+          label.appendChild(document.createTextNode(' ' + rank));
+          ranks.appendChild(label);
+        });
+
+        container.appendChild(left);
+        container.appendChild(ranks);
+
+        if (c.category.toLowerCase() === 'king') kingList.appendChild(container);
+        else if (c.category.toLowerCase() === 'queen') queenList.appendChild(container);
+      });
+
+      // attach uniqueness handlers for both categories after DOM insertion
+      attachUniqueHandlers('King');
+      attachUniqueHandlers('Queen');
+    });
+
+    // submit ranked votes
+    submitVoteBtn.addEventListener('click', async ()=>{
+      formMsg.style.color = 'var(--muted)';
+      formMsg.textContent = '';
+
+      const codeInput = document.getElementById('voteCode').value.trim().toUpperCase();
+      if (!codeInput) { formMsg.style.color='salmon'; formMsg.textContent='Enter your one-time code.'; return; }
+
+      const codes = loadCodes();
+      if (!(codeInput in codes)) { formMsg.style.color='salmon'; formMsg.textContent='Invalid code.'; return; }
+      if (codes[codeInput] === true) { formMsg.style.color='salmon'; formMsg.textContent='This code has already been used.'; return; }
+
+      // validate that each category has 3 distinct selections
+      for (const category of categories){
+        const sel1 = voterSelections[category].vote1;
+        const sel2 = voterSelections[category].vote2;
+        const sel3 = voterSelections[category].vote3;
+        if (!sel1 || !sel2 || !sel3) {
+          formMsg.style.color='salmon';
+          formMsg.textContent = `Please select 1st, 2nd and 3rd choices for Prom ${category}.`;
+          return;
+        }
+        const set = new Set([sel1, sel2, sel3]);
+        if (set.size !== 3) {
+          formMsg.style.color='salmon';
+          formMsg.textContent = `You cannot choose the same candidate multiple times for Prom ${category}.`;
+          return;
+        }
+      }
+
+      try {
+        for (const category of categories) {
+          for (let rank=1; rank<=3; rank++){
+            const sel = voterSelections[category][`vote${rank}`];
+            await db.collection('candidates').doc(sel)
+              .update({ [`vote${rank}`]: firebase.firestore.FieldValue.increment(1) });
+          }
+        }
+
+        // mark code used locally for demo
+        codes[codeInput] = true;
+        localStorage.setItem(CODES_KEY, JSON.stringify(codes));
+        showSomeCodes();
+
+        formMsg.style.color='lime';
+        formMsg.textContent = '✅ Your votes have been submitted. Thank you!';
+        // reset radios and selections, re-enable inputs
+        document.querySelectorAll('input[type=radio]').forEach(r=>{ r.checked=false; r.disabled=false; });
+        for (const cat of categories) voterSelections[cat] = {vote1:null,vote2:null,vote3:null};
+        document.getElementById('voteCode').value = '';
+      } catch (err) {
+        console.error(err);
+        formMsg.style.color='salmon';
+        formMsg.textContent = '❌ Something went wrong.';
+      }
+    });
+
+    // -------------------------
+    // Admin access flow (password-gated)
+    // -------------------------
+    const ADMIN_PASSWORD = '698102025'; // change as needed
+    const adminLoginBtn = document.getElementById('adminLoginBtn');
+    const adminModal = document.getElementById('adminModal');
+    const adminSubmit = document.getElementById('adminSubmit');
+    const adminCancel = document.getElementById('adminCancel');
+    const adminPasswordInput = document.getElementById('adminPasswordInput');
+    const adminErr = document.getElementById('adminErr');
+    const openAdminBtn = document.getElementById('openAdmin');
+
+    function openAdminModal(){
+      adminErr.textContent = '';
+      adminPasswordInput.value = '';
+      adminModal.style.display = 'flex';
+      adminModal.setAttribute('aria-hidden','false');
+      adminPasswordInput.focus();
+    }
+    function closeAdminModal(){
+      adminModal.style.display = 'none';
+      adminModal.setAttribute('aria-hidden','true');
+    }
+
+    adminLoginBtn.addEventListener('click', openAdminModal);
+    adminCancel.addEventListener('click', closeAdminModal);
+
+    adminSubmit.addEventListener('click', ()=>{
+      const pwd = adminPasswordInput.value;
+      if (!pwd) { adminErr.textContent = 'Enter password'; return; }
+      if (pwd === ADMIN_PASSWORD) {
+        // mark session authenticated and open admin page
+        sessionStorage.setItem('adminAuth', '1');
+        closeAdminModal();
+        window.open('admin.html', '_blank');
+      } else {
+        adminErr.textContent = 'Incorrect password';
+      }
+    });
+
+    // Open admin button: only if already authenticated
+    openAdminBtn.addEventListener('click', ()=>{
+      if (sessionStorage.getItem('adminAuth') === '1') {
+        window.open('admin.html', '_blank');
+      } else {
+        openAdminModal();
+      }
+    });
+
+    document.getElementById('helpBtn').addEventListener('click', ()=> alert('Use the one-time code provided by admin. Each code can be used only once.'));
+
+    // helper: escape text
+    function escapeHtml(s){
+      return s.replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>
+<script>
+  // Replace local-only code checks with a Firestore-backed codes collection.
+  // This snippet replaces the existing submit handler (removes prior listeners)
+  // and shows a live sample of unused codes from Firestore so voters worldwide can use codes managed in the database.
+
+  // Helper: replace button to remove previously attached anonymous listeners
+  (function replaceSubmitHandler() {
+    const old = document.getElementById('submitVote');
+    if (!old) return;
+    const btn = old.cloneNode(true);
+    old.parentNode.replaceChild(btn, old);
+
+    // show some unused codes from Firestore (sample)
+    async function showCodesFromFirestore() {
+      try {
+        const q = await db.collection('codes').where('used', '==', false).limit(8).get();
+        const arr = [];
+        q.forEach(d => arr.push(d.id));
+        document.getElementById('codesList').textContent = arr.length ? arr.join('  ') : 'No unused codes available (ask admin).';
+      } catch (e) {
+        console.error('Could not load codes sample', e);
+        document.getElementById('codesList').textContent = 'Unable to load codes sample.';
+      }
+    }
+    showCodesFromFirestore();
+
+    // new click handler uses a transaction to atomically verify-and-mark a code, then increment votes
+    btn.addEventListener('click', async () => {
+      const formMsg = document.getElementById('formMsg');
+      formMsg.style.color = 'var(--muted)';
+      formMsg.textContent = '';
+
+      const codeInput = document.getElementById('voteCode').value.trim().toUpperCase();
+      if (!codeInput) { formMsg.style.color = 'salmon'; formMsg.textContent = 'Enter your one-time code.'; return; }
+
+      // validate selections quickly using existing voterSelections and categories
+      for (const category of categories) {
+        const s1 = voterSelections[category].vote1;
+        const s2 = voterSelections[category].vote2;
+        const s3 = voterSelections[category].vote3;
+        if (!s1 || !s2 || !s3) { formMsg.style.color='salmon'; formMsg.textContent = `Please select 1st, 2nd and 3rd choices for Prom ${category}.`; return; }
+        if (new Set([s1,s2,s3]).size !== 3) { formMsg.style.color='salmon'; formMsg.textContent = `You cannot choose the same candidate multiple times for Prom ${category}.`; return; }
+      }
+
+      try {
+        await db.runTransaction(async tx => {
+          const codeRef = db.collection('codes').doc(codeInput);
+          const codeSnap = await tx.get(codeRef);
+          if (!codeSnap.exists) throw new Error('INVALID_CODE');
+          const used = codeSnap.get('used');
+          if (used) throw new Error('CODE_USED');
+
+          // mark code used and record small metadata
+          tx.update(codeRef, {
+            used: true,
+            usedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            usedBy: (document.getElementById('voterName').value || null)
+          });
+
+          // increment votes atomically
+          for (const category of categories) {
+            for (let rank = 1; rank <= 3; rank++) {
+              const sel = voterSelections[category][`vote${rank}`];
+              const candRef = db.collection('candidates').doc(sel);
+              tx.update(candRef, { [`vote${rank}`]: firebase.firestore.FieldValue.increment(1) });
+            }
+          }
+        });
+
+        // success UI
+        formMsg.style.color = 'lime';
+        formMsg.textContent = '✅ Your votes have been submitted. Thank you!';
+        // reset UI state (re-enable radios and clear selections)
+        document.querySelectorAll('input[type=radio]').forEach(r=>{ r.checked=false; r.disabled=false; });
+        for (const cat of categories) voterSelections[cat] = {vote1:null,vote2:null,vote3:null};
+        document.getElementById('voteCode').value = '';
+        showCodesFromFirestore();
+
+      } catch (err) {
+        console.error(err);
+        if (err.message === 'INVALID_CODE') {
+          formMsg.style.color='salmon';
+          formMsg.textContent = 'Invalid code.';
+        } else if (err.message === 'CODE_USED') {
+          formMsg.style.color='salmon';
+          formMsg.textContent = 'This code has already been used.';
+        } else {
+          formMsg.style.color='salmon';
+          formMsg.textContent = '❌ Something went wrong. Try again.';
+        }
+      }
+    });
+  })();
+</script>

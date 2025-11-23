@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prom Candidates — Static Preview</title>
+
+  <style>
+  :root {
+    --black: #000000;
+    --panel: #0f0b14;
+    --gold: #D4AF37;
+    --gold-dark: #b68f2a;
+    --purple: #6E2DA8;
+    --muted: #cdb7e8;
+    --text: #f6edd8;
+    --border: rgba(110,45,168,0.12);
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--black) 0%, #07040a 60%);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .container {
+    width: 95%;
+    max-width: 1100px;
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 24px;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    box-shadow: 0 14px 50px rgba(0,0,0,0.8);
+    margin: 40px 0;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background-image: url('assets/logo.png');
+    background-size: cover;
+    background-position: center;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 20px;
+    color: var(--gold);
+  }
+
+  .sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .btn {
+    background: linear-gradient(180deg, var(--gold), var(--gold-dark));
+    color: #050505;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-weight: 700;
+    box-shadow: 0 8px 20px rgba(182,143,42,0.08);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(182,143,42,0.2);
+  }
+
+  section {
+    margin-top: 24px;
+  }
+
+  .category-title {
+    color: var(--purple);
+    font-size: 18px;
+    margin: 0 0 12px 0;
+    border-left: 4px solid var(--gold);
+    padding-left: 10px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 24px;
+    margin-top: 12px;
+  }
+
+  .card {
+    background: rgba(255,255,255,0.02);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.03);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.5);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(110,45,168,0.2);
+  }
+
+  .card img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--purple), var(--gold));
+  }
+
+  .name {
+    margin-top: 10px;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: 0.4px;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 30px;
+  }
+
+  @media (max-width: 600px) {
+    h1 { font-size: 18px; }
+    .card img { height: 140px; }
+    .container { padding: 16px; }
+  }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo"></div>
+        <div>
+          <h1>Prom Candidates</h1>
+          <div class="sub">Static preview — Prom King & Queen nominees</div>
+        </div>
+      </div>
+      <button class="btn" onclick="window.location.href='index.html'">⬅ Back to Voting Page</button>
+    </header>
+
+    <section>
+      <h2 class="category-title">Prom King Contestent</h2>
+      <div class="grid">
+        <div class="card">
+          <img src="assets/males/contestant.jpeg" alt="King 1">
+          <div class="name">Jarrod GABINA</div>
+        </div>
+        <div class="card">
+          <img src="assets/males/contestant2.jpeg" alt="King 2">
+          <div class="name">Vearinama WAMALA</div>
+        </div>
+        <div class="card">
+          <img src="assets/males/contestant3.jpeg" alt="King 3">
+          <div class="name">Jerod TUI</div>
+        </div>
+         <div class="card">
+          <img src="assets/males/contestant4.jpeg" alt="King 3">
+          <div class="name">Rodrigo PAMUNDA</div>
+        </div>
+         <div class="card">
+          <img src="assets/males/contestant5.jpeg" alt="King 3">
+          <div class="name">Ezra AGI</div>
+        </div>
+         <div class="card">
+          <img src="assets/males/contestant6.jpeg" alt="King 3">
+          <div class="name">Caleb ROAPE</div>
+        </div>
+         <div class="card">
+          <img src="assets/males/contestant7.jpeg" alt="King 3">
+          <div class="name">Philemon KOROWI</div>
+        </div>
+         <div class="card">
+          <img src="assets/males/contestant8.jpeg" alt="King 3">
+          <div class="name">Jordan YAKIPU</div>
+        </div>
+        
+      </div>
+    </section>
+
+    <section>
+      <h2 class="category-title">Prom Queen Contestens</h2>
+      <div class="grid">
+        <div class="card">
+          <img src="assets/females/contestant.jpeg" alt="Queen 1">
+          <div class="name">Cinderrela PORA</div>
+        </div>
+        <div class="card">
+          <img src="assets/females/contestant2.jpeg" alt="Queen 2">
+          <div class="name">Leona KORA</div>
+        </div>
+        <div class="card">
+          <img src="assets/females/contestant3.jpeg" alt="Queen 3">
+          <div class="name">Kourtney NALI</div>
+        </div>
+        <div class="card">
+          <img src="assets/females/contestant4.jpeg" alt="Queen 3">
+          <div class="name">Amy LOHIA</div>
+        </div>
+        <div class="card">
+          <img src="assets/females/contestant5.jpeg" alt="Queen 3">
+          <div class="name">Gabriella YUNG</div>
+        </div>
+        <div class="card">
+          <img src="assets/females/contestant6.jpeg" alt="Queen 3">
+          <div class="name">Abigail RUHUKAIL</div>
+        </div>
+        <div class="card">
+          <img src="assets/females/contestant7.jpeg" alt="Queen 3">
+          <div class="name">Amenda YEI</div>
+        </div>
+        <div class="card">
+          <img src="assets/females/contestant8.jpeg" alt="Queen 3">
+          <div class="name">Rose APIS</div>
+        </div>
+      </div>
+    </section>
+
+    <footer>One Time Election Site</footer>
+  </div>
+</body>
+</html>

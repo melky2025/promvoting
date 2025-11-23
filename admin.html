@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin - Ranked Voting</title>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+  <style>
+  /* Gold · Purple · Black — keep admin layout, polished theme */
+  :root{
+    --black: #000000;
+    --panel: #0f0b14;
+    --gold: #D4AF37;
+    --gold-dark: #b68f2a;
+    --purple: #6E2DA8;
+    --muted: #cdb7e8;
+    --text: #f6edd8;
+    --border: rgba(110,45,168,0.12);
+    --radius:12px;
+    --maxw:1100px;
+    --glass: rgba(255,255,255,0.02);
+  }
+
+  html,body{height:100%; margin:0;}
+  body{
+    min-height:100vh;
+    background: linear-gradient(180deg, #000000 0%, #07040a 60%);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    color:var(--text);
+    display:flex;
+    justify-content:center;
+    padding:28px;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+
+  .app{
+    width:100%;
+    max-width:var(--maxw);
+    background:var(--panel);
+    border-radius:14px;
+    padding:20px;
+    box-sizing:border-box;
+    border:1px solid var(--border);
+    box-shadow: 0 14px 50px rgba(0,0,0,0.80);
+  }
+
+  header{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+  .brand{ display:flex; gap:12px; align-items:center; }
+ .logo {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background-image: url('assets/logo.png');
+    background-size: cover;
+    background-position: center;
+  }
+  h1{ margin:0; font-size:20px; color:var(--gold); }
+  .sub{ color:var(--muted); font-size:13px; margin-top:4px; }
+
+  .layout { display:grid; grid-template-columns: 1fr; gap:18px; }
+
+  .panel{
+    background:var(--panel);
+    border-radius:12px;
+    padding:14px;
+    border:1px solid rgba(255,255,255,0.02);
+    box-sizing:border-box;
+  }
+
+  /* Results tables (male/female) */
+  .tables { display:flex; gap:18px; flex-wrap:wrap; }
+  table {
+    width:100%;
+    border-collapse:collapse;
+    background:var(--panel);
+    border:1px solid rgba(255,255,255,0.02);
+    border-radius:10px;
+    overflow:hidden;
+  }
+  th {
+    text-align:left;
+    padding:10px 12px;
+    background: rgba(110,45,168,0.04);
+    color:var(--muted);
+    font-size:13px;
+    border-bottom:1px solid rgba(255,255,255,0.03);
+  }
+  td {
+    padding:10px 12px;
+    color:var(--text);
+    border-bottom:1px solid rgba(255,255,255,0.02);
+    font-size:14px;
+  }
+ #nameInput, tbody tr:hover td{
+    background: rgba(110,45,168,0.02);
+  }
+  .points { color:var(--gold); font-weight:700; }
+
+  /* small controls */
+  .controls { display:flex; gap:10px; align-items:center; margin-top:12px; }
+  #nameInput,#categoryInput, .btn {
+    background: linear-gradient(180deg,var(--gold), var(--gold-dark));
+    color:#050505; padding:8px 12px; border-radius:10px; border:none; cursor:pointer; font-weight:700;
+    box-shadow: 0 8px 20px rgba(182,143,42,0.06);
+  }
+#nameInput, #categoryInput, .btn.secondary{
+    background:transparent; color:var(--muted); border:1px solid rgba(110,45,168,0.08);
+  }
+
+  .code-list {
+    font-family:monospace; background:#050405; padding:10px; border-radius:8px; color:var(--muted);
+    max-height:220px; overflow:auto; border:1px solid rgba(255,255,255,0.02);
+  }
+
+  /* candidate list + voting preview */
+   #nameInput,#candidateList .candidate{
+    background:var(--panel); padding:12px; margin-bottom:10px; border-radius:12px;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    border:1px solid rgba(255,255,255,0.02); box-shadow: 0 6px 14px rgba(0,0,0,0.5);
+  }
+  .delete-btn { background:var(--purple); color:var(--text); padding:8px 10px; border-radius:8px; border:none; cursor:pointer; }
+
+  .voting-card{
+    background:var(--panel); border-radius:12px; padding:16px; border:1px solid rgba(255,255,255,0.02);
+  }
+  .voting-card h2{ margin:0 0 10px 0; color:var(--purple); }
+
+  footer{ margin-top:14px; color:var(--muted); font-size:13px; text-align:center; }
+
+  @media (max-width:920px){
+    .layout { grid-template-columns: 1fr; }
+  }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo"></div>
+        <div>
+          <h1>Prom Voting — Admin</h1>
+          <p class="sub">Manage candidates · preview voting · view counts</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="btn" id="refreshBtn">Refresh</button>
+        <button class="btn secondary" id="showCodesBtn">Show Codes</button>
+        <button class="btn secondary" id="regenBtn">Regenerate Codes</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- left: management -->
+      <section class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div>
+            <strong style="font-size:15px">Add Candidate</strong><div style="color:var(--muted);font-size:12px">Name + Category</div>
+          </div>
+        </div>
+
+        <div class="add-form">
+          <input type="text" id="nameInput" placeholder="Candidate Name">
+          <select id="categoryInput">
+            <option value="">Select Category</option>
+            <option value="King">King</option>
+            <option value="Queen">Queen</option>
+          </select>
+          <button id="addBtn" class="btn" style="width:100%;">Add Candidate</button>
+        </div>
+
+        <div id="candidateList" style="margin-top:12px"></div>
+
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button id="resetVotesBtn" class="btn secondary" style="flex:1;">Reset Votes</button>
+          <button id="deleteAllBtn" class="btn secondary" style="flex:1;">Delete All</button>
+        </div>
+      </section>
+
+      <!-- right: preview + results -->
+      <section class="preview">
+        <div class="voting-card">
+          <h2>Voting Page Preview</h2>
+          <div id="votingSection"></div>
+          <div class="controls">
+            <button id="submitVoteBtn" class="btn">Submit Vote</button>
+            <div style="flex:1"></div>
+            <button id="openVoterPage" class="btn secondary" onclick="window.open('index.html', '_blank')">Open Voter Page</button>
+          </div>
+        </div>
+
+        <div class="voting-card">
+          <h2>Vote Counts</h2>
+
+          <!-- NEW: Separate tables for male (Kings) and female (Queens) -->
+          <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+            <div style="flex:1; min-width:300px;">
+              <h3 style="margin:6px 0 8px 0; color:var(--teal)">Prom King (Male)</h3>
+              <table id="resultsMaleTable" style="width:100%; border-collapse:collapse; background:transparent;">
+                <thead>
+                  <tr style="text-align:left; color:var(--muted); font-size:13px;">
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.04)">Candidate</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.04)">1st</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.04)">2nd</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.04)">3rd</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.04)">Total</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <div style="flex:1; min-width:300px;">
+              <h3 style="margin:6px 0 8px 0; color:var(--accent)">Prom Queen (Female)</h3>
+              <table id="resultsFemaleTable" style="width:100%; border-collapse:collapse; background:transparent;">
+                <thead>
+                  <tr style="text-align:left; color:var(--muted); font-size:13px;">
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.04)">Candidate</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.04)">1st</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.04)">2nd</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.04)">3rd</th>
+                    <th style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.04)">Total</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="voting-card">
+          <h2>Codes</h2>
+          <div id="codesContainer" class="code-list" style="display:none"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>One Time Election Site</footer>
+  </div>
+
+<script>
+  // 🔥 Firebase Config (existing)
+  const firebaseConfig = {
+  apiKey: "AIzaSyANtBAgurbdYePV2WCKp3aMyttLQnK52K8",
+  authDomain: "prom-26b4b.firebaseapp.com",
+  projectId: "prom-26b4b",
+  storageBucket: "prom-26b4b.firebasestorage.app",
+  messagingSenderId: "206064316497",
+  appId: "1:206064316497:web:c577820d707da7af0e8870",
+  measurementId: "G-JVRMPCV8JR"
+ };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const storage = firebase.storage();
+
+  // elements
+  const nameInput = document.getElementById('nameInput');
+  const categoryInput = document.getElementById('categoryInput');
+  const addBtn = document.getElementById('addBtn');
+  const candidateList = document.getElementById('candidateList');
+  const votingSection = document.getElementById('votingSection');
+  const submitVoteBtn = document.getElementById('submitVoteBtn');
+
+  // ===== Add Candidate =====
+  addBtn.addEventListener('click', async () => {
+    const name = nameInput.value.trim();
+    const category = categoryInput.value;
+    if (!name || !category) { alert('Fill both fields'); return; }
+    // Prepare candidate data
+    const data = { name, category, vote1: 0, vote2: 0, vote3: 0 };
+
+    await db.collection('candidates').add(data);
+    nameInput.value = '';
+    categoryInput.value = '';
+    photoInput.value = '';
+    photoPreview.src = '';
+    photoPreview.style.display = 'none';
+  });
+
+  // ===== Delete Candidate =====
+  async function deleteCandidate(id) {
+    if (!confirm("Delete this candidate?")) return;
+    try {
+      // fetch doc to see if it has a photoPath
+      const doc = await db.collection('candidates').doc(id).get();
+      if (doc.exists) {
+        const data = doc.data();
+        if (data && data.photoPath) {
+          try { await storage.ref().child(data.photoPath).delete(); } catch (e) { console.warn('Failed deleting storage file', e); }
+        }
+      }
+      await db.collection('candidates').doc(id).delete();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete candidate.');
+    }
+  }
+
+  // render and snapshot
+  db.collection('candidates').onSnapshot(snapshot => {
+    candidateList.innerHTML = '';
+    votingSection.innerHTML = '';
+
+    const kings = [];
+    const queens = [];
+
+    snapshot.forEach(doc => {
+      const c = doc.data();
+      const div = document.createElement('div');
+      div.className = 'candidate';
+      // render thumbnail if present
+      const thumb = c.photoURL ? `<img src="${c.photoURL}" style="width:56px;height:44px;object-fit:cover;border-radius:8px;margin-right:8px;">` : '';
+      div.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${thumb}
+          <span style="font-weight:600">${c.name} <small style="color:var(--muted)">(${c.category})</small></span>
+        </div>
+        <button class="delete-btn" onclick="deleteCandidate('${doc.id}')">Delete</button>
+      `;
+      candidateList.appendChild(div);
+
+      // include photoURL so voting preview can show thumbnails
+      if (c.category && c.category.toLowerCase() === 'king') kings.push({id: doc.id, name: c.name, photoURL: c.photoURL});
+      else if (c.category && c.category.toLowerCase() === 'queen') queens.push({id: doc.id, name: c.name, photoURL: c.photoURL});
+    });
+
+    renderVotingCategory('Prom King', kings, 'king');
+    renderVotingCategory('Prom Queen', queens, 'queen');
+
+    // update results grid counts (assumes up to 16 candidates mapped to c1..c16 if using local storage)
+    // If you use Firestore for counts, fetch them separately or adapt as needed.
+    refreshCountsFromFirestore(snapshot);
+  });
+
+  function renderVotingCategory(title, candidates, type) {
+    const section = document.createElement('div');
+    section.className = 'voting-card';
+    const h2 = document.createElement('h2');
+    h2.textContent = title;
+    section.appendChild(h2);
+
+    candidates.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'candidate-row';
+      const thumb = c.photoURL ? `<img src="${c.photoURL}" style="width:40px;height:30px;object-fit:cover;border-radius:6px;margin-right:8px;vertical-align:middle;">` : '';
+      const nameHtml = `<div style="display:flex;align-items:center;gap:8px;">${thumb}<div class="name">${c.name}</div></div>`;
+      div.innerHTML = `
+        ${nameHtml}
+        <div class="radios">
+          1 <input type="radio" name="${type}1" value="${c.id}">
+          2 <input type="radio" name="${type}2" value="${c.id}">
+          3 <input type="radio" name="${type}3" value="${c.id}">
+        </div>
+      `;
+      section.appendChild(div);
+    });
+
+    votingSection.appendChild(section);
+  }
+
+  // Submit ranked vote (existing code preserved)
+  submitVoteBtn.addEventListener('click', async () => {
+    const categories = ['king','queen'];
+
+    try {
+      for (let cat of categories) {
+        const vote1 = document.querySelector(`input[name="${cat}1"]:checked`);
+        const vote2 = document.querySelector(`input[name="${cat}2"]:checked`);
+        const vote3 = document.querySelector(`input[name="${cat}3"]:checked`);
+
+        if (!vote1 || !vote2 || !vote3) {
+          alert('Please select 1st, 2nd, 3rd choice for ' + cat);
+          return;
+        }
+
+        await db.collection('candidates').doc(vote1.value)
+          .update({vote1: firebase.firestore.FieldValue.increment(1)});
+        await db.collection('candidates').doc(vote2.value)
+          .update({vote2: firebase.firestore.FieldValue.increment(1)});
+        await db.collection('candidates').doc(vote3.value)
+          .update({vote3: firebase.firestore.FieldValue.increment(1)});
+      }
+
+      alert('✅ Your votes have been submitted!');
+    } catch (err) {
+      console.error(err);
+      alert('❌ Something went wrong.');
+    }
+  });
+
+  // ----- Codes + results utilities (client-side) -----
+  const CODES_KEY = 'voterCodes_v1';
+  const CODES_COUNT = 500;
+
+  // helper: random code generator (used by Firestore generator)
+  function generateRandomCode(len = 8) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars.charAt(Math.floor(Math.random() * chars.length));
+    return s;
+  }
+
+  // generate N codes and store as documents in collection "codes" (doc id = code string)
+  async function generateCodesFirestore(n){
+    const batch = db.batch();
+    for (let i=0;i<n;i++){
+      const code = generateRandomCode();
+      const ref = db.collection('codes').doc(code);
+      batch.set(ref, { code, used: false, usedBy: null, usedAt: null });
+    }
+    await batch.commit();
+    return true;
+  }
+
+  async function clearCodesFirestore(){
+    const snapshot = await db.collection('codes').get();
+    if (snapshot.empty) return;
+    const batch = db.batch();
+    snapshot.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+  }
+
+  // show codes (reads from Firestore)
+  document.getElementById('showCodesBtn').addEventListener('click', async () => {
+    const div = document.getElementById('codesContainer');
+    const snapshot = await db.collection('codes').orderBy('used').limit(1000).get();
+    const lines = snapshot.docs.map(d => `${d.id} — ${d.data().used ? 'USED' : 'UNUSED'}`);
+    div.style.display = 'block';
+    div.textContent = lines.join('\n') || 'No codes found';
+  });
+
+  // regenerate codes in Firestore (deletes existing then generates new)
+  document.getElementById('regenBtn').addEventListener('click', async () => {
+    if (!confirm('Regenerate 300 codes and overwrite existing?')) return;
+    try {
+      await clearCodesFirestore();
+      await generateCodesFirestore(CODES_COUNT);
+      alert('Codes regenerated.');
+      document.getElementById('showCodesBtn').click();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to regenerate codes.');
+    }
+  });
+
+  // ensure at least some codes exist (run once on load)
+  (async function ensureCodesExist(){
+    try {
+      const snap = await db.collection('codes').limit(1).get();
+      if (snap.empty) {
+        await generateCodesFirestore(CODES_COUNT);
+        console.log('Initial codes generated in Firestore.');
+      }
+    } catch (err) {
+      console.error('Error ensuring codes exist:', err);
+    }
+  })();
+
+  // helper: refresh counts from Firestore snapshot
+  function refreshCountsFromFirestore(snapshot){
+    const maleTbody = document.querySelector('#resultsMaleTable tbody');
+    const femaleTbody = document.querySelector('#resultsFemaleTable tbody');
+    maleTbody.innerHTML = '';
+    femaleTbody.innerHTML = '';
+
+    // collect docs
+    const docs = [];
+    snapshot.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
+
+    // compute points: 1st = 4, 2nd = 2, 3rd = 1
+    docs.forEach(item => {
+      const name = item.name ? escapeHtml(item.name) : 'Unnamed';
+      const v1 = item.vote1 || 0;
+      const v2 = item.vote2 || 0;
+      const v3 = item.vote3 || 0;
+      const totalVotes = v1 + v2 + v3;
+      const points = (v1 * 4) + (v2 * 2) + (v3 * 1);
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.03)">${name}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.03)">${v1}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.03)">${v2}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.03)">${v3}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.03)">${totalVotes}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.03)"><strong>${points}</strong></td>
+      `;
+
+      if (item.category && item.category.toLowerCase() === 'king') {
+        maleTbody.appendChild(row);
+      } else if (item.category && item.category.toLowerCase() === 'queen') {
+        femaleTbody.appendChild(row);
+      } else {
+        maleTbody.appendChild(row);
+      }
+    });
+  }
+
+  // small escape helper if not present elsewhere
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]);
+  }
+
+  document.getElementById('resetVotesBtn').addEventListener('click', async () => {
+    if (!confirm('Reset all vote counts to zero?')) return;
+    const snapshot = await db.collection('candidates').get();
+    const batch = db.batch();
+    snapshot.forEach(doc => {
+      batch.update(doc.ref, {vote1:0, vote2:0, vote3:0});
+    });
+    await batch.commit();
+    alert('Votes reset.');
+  });
+
+  document.getElementById('deleteAllBtn').addEventListener('click', async () => {
+    if (!confirm('Delete ALL candidates?')) return;
+    const snapshot = await db.collection('candidates').get();
+    const batch = db.batch();
+    snapshot.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    alert('All candidates deleted.');
+  });
+
+  // ensure codes exist
+  if (!localStorage.getItem(CODES_KEY)) generateCodes(CODES_COUNT);
+</script>
+</body>
+</html>
